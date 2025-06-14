@@ -11,14 +11,18 @@ brew install fzf
 cat <<EOF > ~/.opencode.json
 {
   "providers": {
+    "gemini": {
+      "apiKey": "<GEMINI_API_KEY>",
+      "disabled": false
+    },
     "openrouter": {
-      "apiKey": "your-openrouter-api-key",
+      "apiKey": "<OPENROUTER_API_KEY>",
       "disabled": false
     }
   },
   "agents": {
     "coder": {
-      "model": "openrouter.devstral-small-free",
+      "model": "gemini-2.5",
       "maxTokens": 30000
     },
     "task": {
@@ -26,11 +30,11 @@ cat <<EOF > ~/.opencode.json
       "maxTokens": 5000
     },
     "title": {
-      "model": "openrouter.gemma-3-4b-it-free",
+      "model": "openrouter.gemma-3-12b-it-free",
       "maxTokens": 80
     },
     "translater": {
-      "model": "openrouter.gemma-3-4b-it-free",
+      "model": "openrouter.gemma-3-12b-it-free",
       "maxTokens": 5000
     }
   },
