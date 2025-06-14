@@ -70,6 +70,7 @@ type agent struct {
 
 	// 2025.06.14 Kawata added models and translater agent
 	translaterProvider provider.Provider
+	agentName          config.AgentName
 
 	activeRequests sync.Map
 }
@@ -118,6 +119,7 @@ func NewAgent(
 		summarizeProvider: summarizeProvider,
 		// 2025.06.14 Kawata added models and translater agent
 		translaterProvider: translaterProvider,
+		agentName:          agentName,
 		activeRequests:     sync.Map{},
 	}
 
@@ -308,29 +310,6 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 	}
 
-	// 2025.06.14 Kawata added models and translater agent
-	// if input has no '/en ' prefix then translate it to English
-	// In short, '/en ' means 'I write in English'
-	if !strings.HasPrefix(content, "/en ") {
-		logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", content))
-		content = strings.TrimPrefix(content, "/en ")
-		translated, err := a.translateToEnglish(ctx, content)
-		if err != nil {
-			return a.err(fmt.Errorf("failed to translate user message to English: %s", err))
-		}
-		if translated == nil || *translated == "" {
-			return a.err(errors.New("failed to translate user message to English"))
-		}
-		isWhitespace := func(r rune) bool {
-			return unicode.IsSpace(r)
-		}
-		content = strings.TrimPrefix(*translated, ".")
-		content = strings.TrimFunc(content, isWhitespace)
-		logging.InfoPersist(fmt.Sprintf("Translated: '%s'", content))
-	} else {
-		content = strings.TrimPrefix(content, "/en ")
-	}
-
 	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
 	if err != nil {
 		return a.err(fmt.Errorf("failed to create user message: %w", err))
@@ -370,6 +349,30 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 }
 
 func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
+	if a.agentName == config.AgentCoder {
+		// 2025.06.14 Kawata added models and translater agent
+		// if input has no '/en ' prefix then translate it to English
+		// In short, '/en ' means 'I write in English'
+		if !strings.HasPrefix(content, "/en ") {
+			logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", content))
+			content = strings.TrimPrefix(content, "/en ")
+			translated, err := a.translateToEnglish(ctx, content)
+			if err != nil {
+				logging.WarnPersist(fmt.Sprintf("Translate Failed: %s", err))
+			}
+			if translated == nil || *translated == "" {
+				logging.WarnPersist("Translate Failed.")
+			}
+			isWhitespace := func(r rune) bool {
+				return unicode.IsSpace(r)
+			}
+			content = strings.TrimPrefix(*translated, ".")
+			content = strings.TrimFunc(content, isWhitespace)
+			logging.InfoPersist(fmt.Sprintf("Translated: '%s'", content))
+		} else {
+			content = strings.TrimPrefix(content, "/en ")
+		}
+	}
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	parts = append(parts, attachmentParts...)
 	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{
@@ -788,6 +791,8 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 			provider.WithOpenAIOptions(
 				provider.WithReasoningEffort(agentConfig.ReasoningEffort),
 			),
+			// 2025.06.14 Kawata added endpoint for provider
+			provider.WithEndpoint(providerCfg.Endpoint),
 		)
 	} else if model.Provider == models.ProviderAnthropic && model.CanReason && agentName == config.AgentCoder {
 		opts = append(

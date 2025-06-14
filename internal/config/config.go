@@ -55,6 +55,8 @@ type Agent struct {
 type Provider struct {
 	APIKey   string `json:"apiKey"`
 	Disabled bool   `json:"disabled"`
+	// 2025.06.14 Kawata added endpoint for provider
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // Data defines storage configuration.
@@ -189,6 +191,12 @@ func Load(workingDir string, debug bool) (*Config, error) {
 			Level: defaultLevel,
 		}))
 		slog.SetDefault(logger)
+	}
+
+	// 2025.06.14 Kawata added endpoint for provider
+	if localProviderCfg, ok := cfg.Providers["local"]; ok && !localProviderCfg.Disabled {
+		endpoint := localProviderCfg.Endpoint
+		models.InitLocal(endpoint)
 	}
 
 	// Validate configuration
@@ -576,8 +584,6 @@ func Validate() error {
 		return fmt.Errorf("config not loaded")
 	}
 
-	// 2025.06.14 Kawata added models and translater agent
-	models.Init()
 	// Validate agent models
 	for name, agent := range cfg.Agents {
 		if err := validateAgent(cfg, name, agent); err != nil {

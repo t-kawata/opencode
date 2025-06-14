@@ -68,6 +68,9 @@ type providerClientOptions struct {
 	openaiOptions    []OpenAIOption
 	geminiOptions    []GeminiOption
 	bedrockOptions   []BedrockOption
+
+	// 2025.06.14 Kawata added endpoint for provider
+	endpoint string
 }
 
 type ProviderClientOption func(*providerClientOptions)
@@ -147,8 +150,16 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 			client:  newOpenAIClient(clientOptions),
 		}, nil
 	case models.ProviderLocal:
+		// 2025.06.14 Kawata added endpoint for provider
+		// clientOptions.openaiOptions = append(clientOptions.openaiOptions,
+		// 	WithOpenAIBaseURL(os.Getenv("LOCAL_ENDPOINT")),
+		// )
+		localEndpoint := os.Getenv("LOCAL_ENDPOINT")
+		if localEndpoint == "" {
+			localEndpoint = clientOptions.endpoint
+		}
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
-			WithOpenAIBaseURL(os.Getenv("LOCAL_ENDPOINT")),
+			WithOpenAIBaseURL(localEndpoint),
 		)
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
@@ -231,5 +242,12 @@ func WithGeminiOptions(geminiOptions ...GeminiOption) ProviderClientOption {
 func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.bedrockOptions = bedrockOptions
+	}
+}
+
+// 2025.06.14 Kawata added endpoint for provider
+func WithEndpoint(endpoint string) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.endpoint = endpoint
 	}
 }

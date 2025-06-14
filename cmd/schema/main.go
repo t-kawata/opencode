@@ -186,6 +186,11 @@ func generateSchema() map[string]any {
 					"description": "Whether the provider is disabled",
 					"default":     false,
 				},
+				// 2025.06.14 Kawata added endpoint for provider
+				"endpoint": map[string]any{
+					"type":        "string",
+					"description": "Base URL for the provider (e.g. http://localhost:11434/v1)",
+				},
 			},
 		},
 	}

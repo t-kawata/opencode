@@ -18,6 +18,11 @@ cat <<EOF > ~/.opencode.json
     "openrouter": {
       "apiKey": "<OPENROUTER_API_KEY>",
       "disabled": false
+    },
+    "local": {
+      "apiKey": "dummy",
+      "disabled": false,
+      "endpoint": "<e.g. http://localhost:11434/v1>"
     }
   },
   "agents": {
@@ -26,15 +31,19 @@ cat <<EOF > ~/.opencode.json
       "maxTokens": 30000
     },
     "task": {
-      "model": "openrouter.devstral-small-free",
+      "model": "gemini-2.5",
       "maxTokens": 5000
     },
     "title": {
-      "model": "openrouter.gemma-3-12b-it-free",
+      "model": "openrouter.gemma-3-4b-it-free",
       "maxTokens": 80
     },
+    "summarizer": {
+      "model": "openrouter.gemma-3-4b-it-free",
+      "maxTokens": 2000
+    },
     "translater": {
-      "model": "openrouter.gemma-3-12b-it-free",
+      "model": "openrouter.gemma-3-4b-it-free",
       "maxTokens": 5000
     }
   },

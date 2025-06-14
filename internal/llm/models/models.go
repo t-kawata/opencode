@@ -95,18 +95,6 @@ func init() {
 	maps.Copy(SupportedModels, OpenRouterModels)
 	maps.Copy(SupportedModels, XAIModels)
 	maps.Copy(SupportedModels, VertexAIGeminiModels)
-}
-
-// 2025.06.14 Kawata added models and translater agent
-func Init() {
-	maps.Copy(SupportedModels, AnthropicModels)
-	maps.Copy(SupportedModels, OpenAIModels)
-	maps.Copy(SupportedModels, GeminiModels)
-	maps.Copy(SupportedModels, GroqModels)
-	maps.Copy(SupportedModels, AzureModels)
-	maps.Copy(SupportedModels, OpenRouterModels)
-	maps.Copy(SupportedModels, XAIModels)
-	maps.Copy(SupportedModels, VertexAIGeminiModels)
 	// 2025.06.14 Kawata added models and translater agent
 	maps.Copy(SupportedModels, OpenRouterModels)
 }
