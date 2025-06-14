@@ -40,6 +40,8 @@ const (
 	AgentSummarizer AgentName = "summarizer"
 	AgentTask       AgentName = "task"
 	AgentTitle      AgentName = "title"
+	// 2025.06.14 Kawata added models and translater agent
+	AgentTranslater AgentName = "translater"
 )
 
 // Agent defines configuration for different LLM models and their token limits.
@@ -574,6 +576,8 @@ func Validate() error {
 		return fmt.Errorf("config not loaded")
 	}
 
+	// 2025.06.14 Kawata added models and translater agent
+	models.Init()
 	// Validate agent models
 	for name, agent := range cfg.Agents {
 		if err := validateAgent(cfg, name, agent); err != nil {

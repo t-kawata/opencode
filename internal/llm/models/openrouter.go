@@ -23,6 +23,10 @@ const (
 	OpenRouterClaude35Haiku  ModelID = "openrouter.claude-3.5-haiku"
 	OpenRouterClaude3Opus    ModelID = "openrouter.claude-3-opus"
 	OpenRouterDeepSeekR1Free ModelID = "openrouter.deepseek-r1-free"
+	// 2025.06.14 Kawata added models and translater agent
+	OpenRouterDevstralSmallFree   ModelID = "openrouter.devstral-small-free"
+	OpenRouterGemma3With12BItFree ModelID = "openrouter.gemma-3-12b-it-free"
+	OpenRouterGemma3With4BItFree  ModelID = "openrouter.gemma-3-4b-it-free"
 )
 
 var OpenRouterModels = map[ModelID]Model{
@@ -260,7 +264,6 @@ var OpenRouterModels = map[ModelID]Model{
 		ContextWindow:      AnthropicModels[Claude3Opus].ContextWindow,
 		DefaultMaxTokens:   AnthropicModels[Claude3Opus].DefaultMaxTokens,
 	},
-
 	OpenRouterDeepSeekR1Free: {
 		ID:                 OpenRouterDeepSeekR1Free,
 		Name:               "OpenRouter – DeepSeek R1 Free",
@@ -271,6 +274,43 @@ var OpenRouterModels = map[ModelID]Model{
 		CostPer1MOut:       0,
 		CostPer1MOutCached: 0,
 		ContextWindow:      163_840,
+		DefaultMaxTokens:   10000,
+	},
+	// 2025.06.14 Kawata added models and translater agent
+	OpenRouterDevstralSmallFree: {
+		ID:                 OpenRouterDevstralSmallFree,
+		Name:               "OpenRouter – Devstral Small Free",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "mistralai/devstral-small:free",
+		CostPer1MIn:        0,
+		CostPer1MInCached:  0,
+		CostPer1MOut:       0,
+		CostPer1MOutCached: 0,
+		ContextWindow:      131_072,
+		DefaultMaxTokens:   10000,
+	},
+	OpenRouterGemma3With12BItFree: {
+		ID:                 OpenRouterGemma3With12BItFree,
+		Name:               "OpenRouter – Gemma 3 12B it Free",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "google/gemma-3-12b-it:free",
+		CostPer1MIn:        0,
+		CostPer1MInCached:  0,
+		CostPer1MOut:       0,
+		CostPer1MOutCached: 0,
+		ContextWindow:      96_000,
+		DefaultMaxTokens:   10000,
+	},
+	OpenRouterGemma3With4BItFree: {
+		ID:                 OpenRouterGemma3With4BItFree,
+		Name:               "OpenRouter – Gemma 3 4B it Free",
+		Provider:           ProviderOpenRouter,
+		APIModel:           "google/gemma-3-4b-it:free",
+		CostPer1MIn:        0,
+		CostPer1MInCached:  0,
+		CostPer1MOut:       0,
+		CostPer1MOutCached: 0,
+		ContextWindow:      96_000,
 		DefaultMaxTokens:   10000,
 	},
 }

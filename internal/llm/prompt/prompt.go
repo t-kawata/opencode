@@ -23,6 +23,8 @@ func GetAgentPrompt(agentName config.AgentName, provider models.ModelProvider) s
 		basePrompt = TaskPrompt(provider)
 	case config.AgentSummarizer:
 		basePrompt = SummarizerPrompt(provider)
+	case config.AgentTranslater:
+		basePrompt = TranslaterPrompt(provider)
 	default:
 		basePrompt = "You are a helpful assistant"
 	}

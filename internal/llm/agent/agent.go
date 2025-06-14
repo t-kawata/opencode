@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/llm/models"
@@ -67,6 +68,9 @@ type agent struct {
 	titleProvider     provider.Provider
 	summarizeProvider provider.Provider
 
+	// 2025.06.14 Kawata added models and translater agent
+	translaterProvider provider.Provider
+
 	activeRequests sync.Map
 }
 
@@ -95,6 +99,14 @@ func NewAgent(
 			return nil, err
 		}
 	}
+	// 2025.06.14 Kawata added models and translater agent
+	var translaterProvider provider.Provider
+	if agentName == config.AgentCoder {
+		translaterProvider, err = createAgentProvider(config.AgentTranslater)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	agent := &agent{
 		Broker:            pubsub.NewBroker[AgentEvent](),
@@ -104,7 +116,9 @@ func NewAgent(
 		tools:             agentTools,
 		titleProvider:     titleProvider,
 		summarizeProvider: summarizeProvider,
-		activeRequests:    sync.Map{},
+		// 2025.06.14 Kawata added models and translater agent
+		translaterProvider: translaterProvider,
+		activeRequests:     sync.Map{},
 	}
 
 	return agent, nil
@@ -187,6 +201,36 @@ func (a *agent) generateTitle(ctx context.Context, sessionID string, content str
 	return err
 }
 
+// 2025.06.14 Kawata added models and translater agent
+func (a *agent) translateToEnglish(ctx context.Context, text string) (translated *string, err error) {
+	if text == "" {
+		err = errors.New("empty text")
+		return
+	}
+	if a.titleProvider == nil {
+		err = errors.New("empty titleProvider")
+		return
+	}
+	content := fmt.Sprintf("<target>%s</target>", text)
+	parts := []message.ContentPart{message.TextContent{Text: content}}
+	response, err := a.translaterProvider.SendMessages(
+		ctx,
+		[]message.Message{
+			{
+				Role:  message.User,
+				Parts: parts,
+			},
+		},
+		make([]tools.BaseTool, 0),
+	)
+	if err != nil {
+		err = fmt.Errorf("failed to request translation: %s", err.Error())
+		return
+	}
+	translated = &response.Content
+	return
+}
+
 func (a *agent) err(err error) AgentEvent {
 	return AgentEvent{
 		Type:  AgentEventTypeError,
@@ -262,6 +306,29 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 			msgs = msgs[summaryMsgInex:]
 			msgs[0].Role = message.User
 		}
+	}
+
+	// 2025.06.14 Kawata added models and translater agent
+	// if input has no '/en ' prefix then translate it to English
+	// In short, '/en ' means 'I write in English'
+	if !strings.HasPrefix(content, "/en ") {
+		logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", content))
+		content = strings.TrimPrefix(content, "/en ")
+		translated, err := a.translateToEnglish(ctx, content)
+		if err != nil {
+			return a.err(fmt.Errorf("failed to translate user message to English: %s", err))
+		}
+		if translated == nil || *translated == "" {
+			return a.err(errors.New("failed to translate user message to English"))
+		}
+		isWhitespace := func(r rune) bool {
+			return unicode.IsSpace(r)
+		}
+		content = strings.TrimPrefix(*translated, ".")
+		content = strings.TrimFunc(content, isWhitespace)
+		logging.InfoPersist(fmt.Sprintf("Translated: '%s'", content))
+	} else {
+		content = strings.TrimPrefix(content, "/en ")
 	}
 
 	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
