@@ -31,7 +31,7 @@ cat <<EOF > ~/.opencode.json
   },
   "agents": {
     "coder": {
-      "model": "gemini-2.5",
+      "model": "local.qwen3:14b",
       "maxTokens": 30000
     },
     "task": {

@@ -46,7 +46,7 @@ For .md files with checklists (- [ ] task): read file, briefly confirm plan, exe
 # Code Standards
 - Check existing libraries/patterns before adding new ones
 - Follow codebase style/conventions
-- No comments unless complex or requested
+- When writing code in any programming language, include polite and helpful comments explaining the code, unless explicitly told otherwise
 - Never expose secrets/keys
 - Never commit unless explicitly asked
 

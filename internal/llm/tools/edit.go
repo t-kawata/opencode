@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/opencode-ai/opencode/internal/config"
 	"github.com/opencode-ai/opencode/internal/diff"
@@ -131,6 +132,10 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse("file_path is required"), nil
 	}
 
+	// 2025.06.15 Kawata updated replace-delete-logic
+	params.OldString = cleanOldNewString(params.OldString)
+	params.NewString = cleanOldNewString(params.NewString)
+
 	// 2025.06.15 remove the check for absolute path
 	// if !filepath.IsAbs(params.FilePath) {
 	// 	wd := config.WorkingDirectory()
@@ -253,6 +258,247 @@ func (e *editTool) createNewFile(ctx context.Context, filePath, content string) 
 	), nil
 }
 
+// 2025.06.15 Kawata updated replace-delete-logic
+// func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string) (ToolResponse, error) {
+// 	fileInfo, err := os.Stat(filePath)
+// 	if err != nil {
+// 		if os.IsNotExist(err) {
+// 			return NewTextErrorResponse(fmt.Sprintf("file not found: %s", filePath)), nil
+// 		}
+// 		return ToolResponse{}, fmt.Errorf("failed to access file: %w", err)
+// 	}
+
+// 	if fileInfo.IsDir() {
+// 		return NewTextErrorResponse(fmt.Sprintf("path is a directory, not a file: %s", filePath)), nil
+// 	}
+
+// 	if getLastReadTime(filePath).IsZero() {
+// 		return NewTextErrorResponse("you must read the file before editing it. Use the View tool first"), nil
+// 	}
+
+// 	modTime := fileInfo.ModTime()
+// 	lastRead := getLastReadTime(filePath)
+// 	if modTime.After(lastRead) {
+// 		return NewTextErrorResponse(
+// 			fmt.Sprintf("file %s has been modified since it was last read (mod time: %s, last read: %s)",
+// 				filePath, modTime.Format(time.RFC3339), lastRead.Format(time.RFC3339),
+// 			)), nil
+// 	}
+
+// 	content, err := os.ReadFile(filePath)
+// 	if err != nil {
+// 		return ToolResponse{}, fmt.Errorf("failed to read file: %w", err)
+// 	}
+
+// 	oldContent := string(content)
+
+// 	index := strings.Index(oldContent, oldString)
+// 	if index == -1 {
+// 		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+// 	}
+
+// 	lastIndex := strings.LastIndex(oldContent, oldString)
+// 	if index != lastIndex {
+// 		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
+// 	}
+
+// 	newContent := oldContent[:index] + oldContent[index+len(oldString):]
+
+// 	sessionID, messageID := GetContextValues(ctx)
+
+// 	if sessionID == "" || messageID == "" {
+// 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for creating a new file")
+// 	}
+
+// 	diff, additions, removals := diff.GenerateDiff(
+// 		oldContent,
+// 		newContent,
+// 		filePath,
+// 	)
+
+// 	rootDir := config.WorkingDirectory()
+// 	permissionPath := filepath.Dir(filePath)
+// 	if strings.HasPrefix(filePath, rootDir) {
+// 		permissionPath = rootDir
+// 	}
+// 	p := e.permissions.Request(
+// 		permission.CreatePermissionRequest{
+// 			SessionID:   sessionID,
+// 			Path:        permissionPath,
+// 			ToolName:    EditToolName,
+// 			Action:      "write",
+// 			Description: fmt.Sprintf("Delete content from file %s", filePath),
+// 			Params: EditPermissionsParams{
+// 				FilePath: filePath,
+// 				Diff:     diff,
+// 			},
+// 		},
+// 	)
+// 	if !p {
+// 		return ToolResponse{}, permission.ErrorPermissionDenied
+// 	}
+
+// 	err = os.WriteFile(filePath, []byte(newContent), 0o644)
+// 	if err != nil {
+// 		return ToolResponse{}, fmt.Errorf("failed to write file: %w", err)
+// 	}
+
+// 	// Check if file exists in history
+// 	file, err := e.files.GetByPathAndSession(ctx, filePath, sessionID)
+// 	if err != nil {
+// 		_, err = e.files.Create(ctx, sessionID, filePath, oldContent)
+// 		if err != nil {
+// 			// Log error but don't fail the operation
+// 			return ToolResponse{}, fmt.Errorf("error creating file history: %w", err)
+// 		}
+// 	}
+// 	if file.Content != oldContent {
+// 		// User Manually changed the content store an intermediate version
+// 		_, err = e.files.CreateVersion(ctx, sessionID, filePath, oldContent)
+// 		if err != nil {
+// 			logging.Debug("Error creating file history version", "error", err)
+// 		}
+// 	}
+// 	// Store the new version
+// 	_, err = e.files.CreateVersion(ctx, sessionID, filePath, "")
+// 	if err != nil {
+// 		logging.Debug("Error creating file history version", "error", err)
+// 	}
+
+// 	recordFileWrite(filePath)
+// 	recordFileRead(filePath)
+
+// 	return WithResponseMetadata(
+// 		NewTextResponse("Content deleted from file: "+filePath),
+// 		EditResponseMetadata{
+// 			Diff:      diff,
+// 			Additions: additions,
+// 			Removals:  removals,
+// 		},
+// 	), nil
+// }
+
+// 2025.06.15 Kawata updated replace-delete-logic
+// func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newString string) (ToolResponse, error) {
+// 	fileInfo, err := os.Stat(filePath)
+// 	if err != nil {
+// 		if os.IsNotExist(err) {
+// 			return NewTextErrorResponse(fmt.Sprintf("file not found: %s", filePath)), nil
+// 		}
+// 		return ToolResponse{}, fmt.Errorf("failed to access file: %w", err)
+// 	}
+
+// 	if fileInfo.IsDir() {
+// 		return NewTextErrorResponse(fmt.Sprintf("path is a directory, not a file: %s", filePath)), nil
+// 	}
+
+// 	if getLastReadTime(filePath).IsZero() {
+// 		return NewTextErrorResponse("you must read the file before editing it. Use the View tool first"), nil
+// 	}
+
+// 	modTime := fileInfo.ModTime()
+// 	lastRead := getLastReadTime(filePath)
+// 	if modTime.After(lastRead) {
+// 		return NewTextErrorResponse(
+// 			fmt.Sprintf("file %s has been modified since it was last read (mod time: %s, last read: %s)",
+// 				filePath, modTime.Format(time.RFC3339), lastRead.Format(time.RFC3339),
+// 			)), nil
+// 	}
+
+// 	content, err := os.ReadFile(filePath)
+// 	if err != nil {
+// 		return ToolResponse{}, fmt.Errorf("failed to read file: %w", err)
+// 	}
+
+// 	oldContent := string(content)
+
+// 	index := strings.Index(oldContent, oldString)
+// 	if index == -1 {
+// 		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+// 	}
+
+// 	lastIndex := strings.LastIndex(oldContent, oldString)
+// 	if index != lastIndex {
+// 		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
+// 	}
+
+// 	newContent := oldContent[:index] + newString + oldContent[index+len(oldString):]
+
+// 	if oldContent == newContent {
+// 		return NewTextErrorResponse("new content is the same as old content. No changes made."), nil
+// 	}
+// 	sessionID, messageID := GetContextValues(ctx)
+
+// 	if sessionID == "" || messageID == "" {
+// 		return ToolResponse{}, fmt.Errorf("session ID and message ID are required for creating a new file")
+// 	}
+// 	diff, additions, removals := diff.GenerateDiff(
+// 		oldContent,
+// 		newContent,
+// 		filePath,
+// 	)
+// 	rootDir := config.WorkingDirectory()
+// 	permissionPath := filepath.Dir(filePath)
+// 	if strings.HasPrefix(filePath, rootDir) {
+// 		permissionPath = rootDir
+// 	}
+// 	p := e.permissions.Request(
+// 		permission.CreatePermissionRequest{
+// 			SessionID:   sessionID,
+// 			Path:        permissionPath,
+// 			ToolName:    EditToolName,
+// 			Action:      "write",
+// 			Description: fmt.Sprintf("Replace content in file %s", filePath),
+// 			Params: EditPermissionsParams{
+// 				FilePath: filePath,
+// 				Diff:     diff,
+// 			},
+// 		},
+// 	)
+// 	if !p {
+// 		return ToolResponse{}, permission.ErrorPermissionDenied
+// 	}
+
+// 	err = os.WriteFile(filePath, []byte(newContent), 0o644)
+// 	if err != nil {
+// 		return ToolResponse{}, fmt.Errorf("failed to write file: %w", err)
+// 	}
+
+// 	// Check if file exists in history
+// 	file, err := e.files.GetByPathAndSession(ctx, filePath, sessionID)
+// 	if err != nil {
+// 		_, err = e.files.Create(ctx, sessionID, filePath, oldContent)
+// 		if err != nil {
+// 			// Log error but don't fail the operation
+// 			return ToolResponse{}, fmt.Errorf("error creating file history: %w", err)
+// 		}
+// 	}
+// 	if file.Content != oldContent {
+// 		// User Manually changed the content store an intermediate version
+// 		_, err = e.files.CreateVersion(ctx, sessionID, filePath, oldContent)
+// 		if err != nil {
+// 			logging.Debug("Error creating file history version", "error", err)
+// 		}
+// 	}
+// 	// Store the new version
+// 	_, err = e.files.CreateVersion(ctx, sessionID, filePath, newContent)
+// 	if err != nil {
+// 		logging.Debug("Error creating file history version", "error", err)
+// 	}
+
+// 	recordFileWrite(filePath)
+// 	recordFileRead(filePath)
+
+// 	return WithResponseMetadata(
+// 		NewTextResponse("Content replaced in file: "+filePath),
+// 		EditResponseMetadata{
+// 			Diff:      diff,
+// 			Additions: additions,
+// 			Removals:  removals,
+// 		}), nil
+// }
+
+// 2025.06.15 Kawata updated replace-delete-logic
 func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string) (ToolResponse, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -286,17 +532,13 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 
 	oldContent := string(content)
 
-	index := strings.Index(oldContent, oldString)
-	if index == -1 {
-		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+	// 空白文字を無視してマッチングを行う
+	start, end, found := findMatchIgnoringWhitespace(oldContent, oldString)
+	if !found {
+		return NewTextErrorResponse("old_string not found in file when ignoring whitespace differences"), nil
 	}
 
-	lastIndex := strings.LastIndex(oldContent, oldString)
-	if index != lastIndex {
-		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
-	}
-
-	newContent := oldContent[:index] + oldContent[index+len(oldString):]
+	newContent := oldContent[:start] + oldContent[end:]
 
 	sessionID, messageID := GetContextValues(ctx)
 
@@ -354,7 +596,7 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 		}
 	}
 	// Store the new version
-	_, err = e.files.CreateVersion(ctx, sessionID, filePath, "")
+	_, err = e.files.CreateVersion(ctx, sessionID, filePath, newContent)
 	if err != nil {
 		logging.Debug("Error creating file history version", "error", err)
 	}
@@ -372,6 +614,7 @@ func (e *editTool) deleteContent(ctx context.Context, filePath, oldString string
 	), nil
 }
 
+// 2025.06.15 Kawata updated replace-delete-logic
 func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newString string) (ToolResponse, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -405,17 +648,13 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 
 	oldContent := string(content)
 
-	index := strings.Index(oldContent, oldString)
-	if index == -1 {
-		return NewTextErrorResponse("old_string not found in file. Make sure it matches exactly, including whitespace and line breaks"), nil
+	// 空白文字を無視してマッチングを行う
+	start, end, found := findMatchIgnoringWhitespace(oldContent, oldString)
+	if !found {
+		return NewTextErrorResponse("old_string not found in file when ignoring whitespace differences"), nil
 	}
 
-	lastIndex := strings.LastIndex(oldContent, oldString)
-	if index != lastIndex {
-		return NewTextErrorResponse("old_string appears multiple times in the file. Please provide more context to ensure a unique match"), nil
-	}
-
-	newContent := oldContent[:index] + newString + oldContent[index+len(oldString):]
+	newContent := oldContent[:start] + newString + oldContent[end:]
 
 	if oldContent == newContent {
 		return NewTextErrorResponse("new content is the same as old content. No changes made."), nil
@@ -489,4 +728,79 @@ func (e *editTool) replaceContent(ctx context.Context, filePath, oldString, newS
 			Additions: additions,
 			Removals:  removals,
 		}), nil
+}
+
+// 2025.06.15 Kawata updated replace-delete-logic
+// oldStringとnewStringから、先頭にあることは相応しくない文字を除去する
+func cleanOldNewString(str string) string {
+	ngList := []string{"\\", ":", ";"}
+	str = strings.TrimSpace(str)
+	for _, l := range ngList {
+		str = strings.TrimPrefix(str, l)
+		str = strings.TrimSpace(str)
+	}
+	return str
+}
+
+// 2025.06.15 Kawata updated replace-delete-logic
+// buildIndexMap は文字列から空白文字を除去し、元のインデックスとのマッピングを作成する
+func buildIndexMap(content string) (stripped string, indices []int) {
+	var sb strings.Builder
+	indices = make([]int, 0)
+	for i, r := range content {
+		if !unicode.IsSpace(r) {
+			sb.WriteRune(r)
+			indices = append(indices, i)
+		}
+	}
+	return sb.String(), indices
+}
+
+// 2025.06.15 Kawata updated replace-delete-logic
+// removeWhitespace は文字列からすべての空白文字を除去する
+func removeWhitespace(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
+// 2025.06.15 Kawata updated replace-delete-logic
+// findMatchIgnoringWhitespace は空白文字を無視してマッチングを行い、元の文字列でのインデックスを返す
+func findMatchIgnoringWhitespace(content, pattern string) (start, end int, ok bool) {
+	strippedContent, indices := buildIndexMap(content)
+	strippedPattern := removeWhitespace(pattern)
+
+	if len(strippedPattern) == 0 {
+		return 0, 0, false
+	}
+
+	// 最初のマッチを探す
+	firstIdx := strings.Index(strippedContent, strippedPattern)
+	if firstIdx == -1 {
+		return 0, 0, false
+	}
+
+	// 複数のマッチがあるかチェック
+	lastIdx := strings.LastIndex(strippedContent, strippedPattern)
+	if firstIdx != lastIdx {
+		return 0, 0, false // 複数マッチは処理しない
+	}
+
+	// 元の文字列でのインデックスを計算
+	startIdx := indices[firstIdx]
+
+	// 終了インデックスを計算
+	endStrippedIdx := firstIdx + len(strippedPattern) - 1
+	var endIdx int
+	if endStrippedIdx < len(indices) {
+		endIdx = indices[endStrippedIdx] + 1
+	} else {
+		endIdx = len(content)
+	}
+
+	return startIdx, endIdx, true
 }
