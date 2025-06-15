@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -348,15 +349,38 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 	}
 }
 
-func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
-	if a.agentName == config.AgentCoder {
-		// 2025.06.14 Kawata added models and translater agent
-		// if input has no '/en ' prefix then translate it to English
-		// In short, '/en ' means 'I write in English'
-		if !strings.HasPrefix(content, "/en ") {
-			logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", content))
-			content = strings.TrimPrefix(content, "/en ")
-			translated, err := a.translateToEnglish(ctx, content)
+// 2025.06.15 Kawata added completion logic for content
+func (a *agent) completeContent(ctx context.Context, content string) string {
+	if a.agentName == config.AgentCoder { // only if the agent is Coder
+		const (
+			PREFIX_EN = "en" // intent to write in English
+			PREFIX_TK = "tk" // /think for qwen3
+			PREFIX_NT = "nt" // /no_think for qwen3
+		)
+		var (
+			prefixes         = []string{PREFIX_EN, PREFIX_TK, PREFIX_NT}
+			detectedPrefixes []string
+			body             = ""
+			ex               = strings.Split(content, " ")
+		)
+		for _, item := range ex {
+			isPrefix := false
+			for _, p := range prefixes {
+				target := strings.TrimSpace(item)
+				if strings.HasPrefix(target, "/") && target == fmt.Sprintf("/%s", p) { // if the item is a prefix
+					isPrefix = true
+					detectedPrefixes = append(detectedPrefixes, p)
+					break
+				}
+			}
+			if !isPrefix {
+				body += item + " "
+			}
+		}
+		body = strings.TrimSpace(body)
+		if !slices.Contains(detectedPrefixes, PREFIX_EN) { // if don't have /en
+			logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", body))
+			translated, err := a.translateToEnglish(ctx, body)
 			if err != nil {
 				logging.WarnPersist(fmt.Sprintf("Translate Failed: %s", err))
 			}
@@ -366,13 +390,25 @@ func (a *agent) createUserMessage(ctx context.Context, sessionID, content string
 			isWhitespace := func(r rune) bool {
 				return unicode.IsSpace(r)
 			}
-			content = strings.TrimPrefix(*translated, ".")
-			content = strings.TrimFunc(content, isWhitespace)
-			logging.InfoPersist(fmt.Sprintf("Translated: '%s'", content))
-		} else {
-			content = strings.TrimPrefix(content, "/en ")
+			body = strings.TrimPrefix(*translated, ".")
+			body = strings.TrimFunc(body, isWhitespace)
+			logging.InfoPersist(fmt.Sprintf("Translated: '%s'", body))
 		}
+		if slices.Contains(detectedPrefixes, PREFIX_TK) { // if has /tk
+			body = fmt.Sprintf("/think %s", body)
+		}
+		if slices.Contains(detectedPrefixes, PREFIX_NT) { // if has /nt
+			body = fmt.Sprintf("/no_think %s", body)
+		}
+		content = body
 	}
+	return content
+}
+
+func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
+	// 2025.06.15 Kawata added completion logic for content
+	content = a.completeContent(ctx, content)
+
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	parts = append(parts, attachmentParts...)
 	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{

@@ -59,7 +59,6 @@ func init() {
 
 // 2025.06.14 Kawata added endpoint for provider
 func InitLocal(endpoint string) {
-	// if endpoint := os.Getenv("LOCAL_ENDPOINT"); endpoint != "" {
 	localEndpoint, err := url.Parse(endpoint)
 	if err != nil {
 		logging.Debug("Failed to parse local endpoint",
@@ -91,7 +90,6 @@ func InitLocal(endpoint string) {
 
 	viper.SetDefault("providers.local.apiKey", "dummy")
 	ProviderPopularity[ProviderLocal] = 0
-	// }
 }
 
 type localModelList struct {
