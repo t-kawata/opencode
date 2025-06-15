@@ -692,9 +692,10 @@ func OpenFile(p string) (string, error) {
 }
 
 func WriteFile(p string, content string) error {
-	if filepath.IsAbs(p) {
-		return NewDiffError("We do not support absolute paths.")
-	}
+	// 2025.06.15 remove the check for absolute path
+	// if filepath.IsAbs(p) {
+	// 	return NewDiffError("We do not support absolute paths.")
+	// }
 
 	dir := filepath.Dir(p)
 	if dir != "." {

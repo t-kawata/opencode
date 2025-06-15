@@ -131,10 +131,13 @@ func (e *editTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error)
 		return NewTextErrorResponse("file_path is required"), nil
 	}
 
-	if !filepath.IsAbs(params.FilePath) {
-		wd := config.WorkingDirectory()
-		params.FilePath = filepath.Join(wd, params.FilePath)
-	}
+	// 2025.06.15 remove the check for absolute path
+	// if !filepath.IsAbs(params.FilePath) {
+	// 	wd := config.WorkingDirectory()
+	// 	params.FilePath = filepath.Join(wd, params.FilePath)
+	// }
+	wd := config.WorkingDirectory()
+	params.FilePath = filepath.Join(wd, params.FilePath)
 
 	var response ToolResponse
 	var err error

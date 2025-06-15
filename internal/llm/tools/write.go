@@ -112,9 +112,11 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	}
 
 	filePath := params.FilePath
-	if !filepath.IsAbs(filePath) {
-		filePath = filepath.Join(config.WorkingDirectory(), filePath)
-	}
+	// 2025.06.15 remove the check for absolute path
+	// if !filepath.IsAbs(filePath) {
+	// 	filePath = filepath.Join(config.WorkingDirectory(), filePath)
+	// }
+	filePath = filepath.Join(config.WorkingDirectory(), filePath)
 
 	fileInfo, err := os.Stat(filePath)
 	if err == nil {
@@ -182,7 +184,6 @@ func (w *writeTool) Run(ctx context.Context, call ToolCall) (ToolResponse, error
 	if !p {
 		return ToolResponse{}, permission.ErrorPermissionDenied
 	}
-
 	err = os.WriteFile(filePath, []byte(params.Content), 0o644)
 	if err != nil {
 		return ToolResponse{}, fmt.Errorf("error writing file: %w", err)
