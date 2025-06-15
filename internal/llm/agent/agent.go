@@ -22,6 +22,11 @@ import (
 	"github.com/opencode-ai/opencode/internal/session"
 )
 
+const (
+	PREFIX_EN = "en" // intent to write in English
+	PREFIX_TK = "tk" // /think for qwen3
+)
+
 // Common errors
 var (
 	ErrRequestCancelled = errors.New("request cancelled by user")
@@ -311,7 +316,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		}
 	}
 
-	userMsg, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
+	userMsg, prefixes, detectedPrefixes, err := a.createUserMessage(ctx, sessionID, content, attachmentParts)
 	if err != nil {
 		return a.err(fmt.Errorf("failed to create user message: %w", err))
 	}
@@ -326,7 +331,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 		default:
 			// Continue processing
 		}
-		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory)
+		agentMessage, toolResults, err := a.streamAndHandleEvents(ctx, sessionID, msgHistory, prefixes, detectedPrefixes)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				agentMessage.AddFinish(message.FinishReasonCanceled)
@@ -350,20 +355,14 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 }
 
 // 2025.06.15 Kawata added completion logic for content
-func (a *agent) completeContent(ctx context.Context, content string) string {
-	// model := a.Model()
-	// os.WriteFile(fmt.Sprintf("test-%s-%s.log", a.provider, model.Name), []byte("test"), 0644)
+func (a *agent) completeContent(ctx context.Context, content string) (lastContent string, prefixes []string, detected []string) {
+	prefixes = []string{PREFIX_EN, PREFIX_TK}
+	var (
+		detectedPrefixes = []string{}
+		body             = ""
+		ex               = strings.Split(content, " ")
+	)
 	if a.agentName == config.AgentCoder { // only if the agent is Coder
-		const (
-			PREFIX_EN = "en" // intent to write in English
-			PREFIX_TK = "tk" // /think for qwen3
-		)
-		var (
-			prefixes         = []string{PREFIX_EN, PREFIX_TK}
-			detectedPrefixes []string
-			body             = ""
-			ex               = strings.Split(content, " ")
-		)
 		for _, item := range ex {
 			isPrefix := false
 			for _, p := range prefixes {
@@ -407,22 +406,25 @@ func (a *agent) completeContent(ctx context.Context, content string) string {
 		}
 		content = body
 	}
-	return content
+	lastContent = content
+	detected = detectedPrefixes
+	return
 }
 
-func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, error) {
+func (a *agent) createUserMessage(ctx context.Context, sessionID, content string, attachmentParts []message.ContentPart) (message.Message, []string, []string, error) {
 	// 2025.06.15 Kawata added completion logic for content
-	content = a.completeContent(ctx, content)
+	content, prefixes, detectedPrefixies := a.completeContent(ctx, content)
 
 	parts := []message.ContentPart{message.TextContent{Text: content}}
 	parts = append(parts, attachmentParts...)
-	return a.messages.Create(ctx, sessionID, message.CreateMessageParams{
+	message, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
 		Role:  message.User,
 		Parts: parts,
 	})
+	return message, prefixes, detectedPrefixies, err
 }
 
-func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message) (message.Message, *message.Message, error) {
+func (a *agent) streamAndHandleEvents(ctx context.Context, sessionID string, msgHistory []message.Message, prefixes []string, detectedPrefixes []string) (message.Message, *message.Message, error) {
 	eventChan := a.provider.StreamResponse(ctx, msgHistory, a.tools)
 
 	assistantMsg, err := a.messages.Create(ctx, sessionID, message.CreateMessageParams{
@@ -518,8 +520,24 @@ out:
 	if len(toolResults) == 0 {
 		return assistantMsg, nil, nil
 	}
+	// 2025.06.15 /think /no_think handling also for tool-call-results
+	model := a.Model()
+	lowerModelName := strings.ToLower(model.Name)
+	isQwen3 := strings.Contains(lowerModelName, "qwen3")
+	isQwen3Think := false
+	if isQwen3 {
+		isQwen3Think = slices.Contains(detectedPrefixes, PREFIX_TK)
+	}
+
 	parts := make([]message.ContentPart, 0)
 	for _, tr := range toolResults {
+		// 2025.06.15 /think /no_think handling also for tool-call-results
+		if isQwen3Think {
+			tr.Content = fmt.Sprintf("/think %s", tr.Content)
+		} else if isQwen3 {
+			tr.Content = fmt.Sprintf("/no_think %s", tr.Content)
+		}
+
 		parts = append(parts, tr)
 	}
 	msg, err := a.messages.Create(context.Background(), assistantMsg.SessionID, message.CreateMessageParams{
