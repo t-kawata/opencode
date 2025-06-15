@@ -88,12 +88,27 @@ func (b *diagnosticsTool) Run(ctx context.Context, call ToolCall) (ToolResponse,
 }
 
 func notifyLspOpenFile(ctx context.Context, filePath string, lsps map[string]*lsp.Client) {
-	for _, client := range lsps {
-		err := client.OpenFile(ctx, filePath)
-		if err != nil {
-			continue
+	// 2025.06.15 Kawata added LSP and Language match-handling
+	languageKind := lsp.DetectLanguageID(filePath)
+
+	for lspKey, client := range lsps {
+		// 2025.06.15 Kawata added LSP and Language match-handling
+		if shouldUseLspForLanguage(lspKey, languageKind) {
+			err := client.OpenFile(ctx, filePath)
+			if err != nil {
+				continue
+			}
 		}
+		// err := client.OpenFile(ctx, filePath)
+		// if err != nil {
+		// 	continue
+		// }
 	}
+}
+
+// 2025.06.15 Kawata added LSP and Language match-handling
+func shouldUseLspForLanguage(lspKey string, languageKind protocol.LanguageKind) bool {
+	return lspKey == string(languageKind)
 }
 
 func waitForLspDiagnostics(ctx context.Context, filePath string, lsps map[string]*lsp.Client) {
@@ -101,9 +116,23 @@ func waitForLspDiagnostics(ctx context.Context, filePath string, lsps map[string
 		return
 	}
 
+	// 2025.06.15 Kawata added LSP and Language match-handling
+	languageKind := lsp.DetectLanguageID(filePath)
+	relevantLsps := make(map[string]*lsp.Client)
+	for lspKey, client := range lsps {
+		if shouldUseLspForLanguage(lspKey, languageKind) {
+			relevantLsps[lspKey] = client
+		}
+	}
+	if len(relevantLsps) == 0 {
+		return
+	}
+
 	diagChan := make(chan struct{}, 1)
 
-	for _, client := range lsps {
+	// 2025.06.15 Kawata added LSP and Language match-handling
+	// for _, client := range lsps {
+	for _, client := range relevantLsps {
 		originalDiags := make(map[protocol.DocumentUri][]protocol.Diagnostic)
 		maps.Copy(originalDiags, client.GetDiagnostics())
 

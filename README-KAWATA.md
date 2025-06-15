@@ -5,6 +5,10 @@
 ```
 brew install ripgrep
 brew install fzf
+npm install -g vscode-html-languageserver-bin
+npm install -g vscode-css-languageserver-bin
+npm install -g typescript typescript-language-server
+go install golang.org/x/tools/gopls@latest
 ```
 # settings
 ```
@@ -56,6 +60,16 @@ cat <<EOF > ~/.opencode.json
       "disabled": false,
       "command": "typescript-language-server",
       "args": ["--stdio"]
+    },
+    "html": {
+      "disabled": false,
+      "command": "html-languageserver",
+      "args": ["--stdio"]
+    },
+    "css": {  
+      "disabled": false,  
+      "command": "css-languageserver",  
+      "args": ["--stdio"]  
     }
   }
 }
