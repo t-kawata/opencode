@@ -351,14 +351,15 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 
 // 2025.06.15 Kawata added completion logic for content
 func (a *agent) completeContent(ctx context.Context, content string) string {
+	// model := a.Model()
+	// os.WriteFile(fmt.Sprintf("test-%s-%s.log", a.provider, model.Name), []byte("test"), 0644)
 	if a.agentName == config.AgentCoder { // only if the agent is Coder
 		const (
 			PREFIX_EN = "en" // intent to write in English
 			PREFIX_TK = "tk" // /think for qwen3
-			PREFIX_NT = "nt" // /no_think for qwen3
 		)
 		var (
-			prefixes         = []string{PREFIX_EN, PREFIX_TK, PREFIX_NT}
+			prefixes         = []string{PREFIX_EN, PREFIX_TK}
 			detectedPrefixes []string
 			body             = ""
 			ex               = strings.Split(content, " ")
@@ -394,11 +395,15 @@ func (a *agent) completeContent(ctx context.Context, content string) string {
 			body = strings.TrimFunc(body, isWhitespace)
 			logging.InfoPersist(fmt.Sprintf("Translated: '%s'", body))
 		}
-		if slices.Contains(detectedPrefixes, PREFIX_TK) { // if has /tk
-			body = fmt.Sprintf("/think %s", body)
-		}
-		if slices.Contains(detectedPrefixes, PREFIX_NT) { // if has /nt
-			body = fmt.Sprintf("/no_think %s", body)
+		// 2025.06.15 Kawata added default-no-think for qwen3
+		model := a.Model()
+		lowerModelName := strings.ToLower(model.Name)
+		if strings.Contains(lowerModelName, "qwen3") {
+			if slices.Contains(detectedPrefixes, PREFIX_TK) { // if has /tk
+				body = fmt.Sprintf("/think %s", body)
+			} else {
+				body = fmt.Sprintf("/no_think %s", body)
+			}
 		}
 		content = body
 	}
@@ -815,6 +820,7 @@ func createAgentProvider(agentName config.AgentName) (provider.Provider, error) 
 	if agentConfig.MaxTokens > 0 {
 		maxTokens = agentConfig.MaxTokens
 	}
+
 	opts := []provider.ProviderClientOption{
 		provider.WithAPIKey(providerCfg.APIKey),
 		provider.WithModel(model),

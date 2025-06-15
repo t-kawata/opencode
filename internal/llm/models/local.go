@@ -1,12 +1,15 @@
 package models
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -32,15 +35,18 @@ func init() {
 			return
 		}
 
-		load := func(url *url.URL, path string) []localModel {
+		// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+		load := func(orgEndpoint string, url *url.URL, path string) []localModel {
 			url.Path = path
-			return listLocalModels(url.String())
+			return listLocalModels(orgEndpoint, url.String())
 		}
 
-		models := load(localEndpoint, lmStudioBetaModelsPath)
+		// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+		models := load(endpoint, localEndpoint, lmStudioBetaModelsPath)
 
 		if len(models) == 0 {
-			models = load(localEndpoint, localModelsPath)
+			// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+			models = load(endpoint, localEndpoint, localModelsPath)
 		}
 
 		if len(models) == 0 {
@@ -68,15 +74,18 @@ func InitLocal(endpoint string) {
 		return
 	}
 
-	load := func(url *url.URL, path string) []localModel {
+	// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+	load := func(orgEndpoint string, url *url.URL, path string) []localModel {
 		url.Path = path
-		return listLocalModels(url.String())
+		return listLocalModels(orgEndpoint, url.String())
 	}
 
-	models := load(localEndpoint, lmStudioBetaModelsPath)
+	// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+	models := load(endpoint, localEndpoint, lmStudioBetaModelsPath)
 
 	if len(models) == 0 {
-		models = load(localEndpoint, localModelsPath)
+		// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+		models = load(endpoint, localEndpoint, localModelsPath)
 	}
 
 	if len(models) == 0 {
@@ -109,7 +118,8 @@ type localModel struct {
 	LoadedContextLength int64  `json:"loaded_context_length"`
 }
 
-func listLocalModels(modelsEndpoint string) []localModel {
+// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+func listLocalModels(orgEndpoint string, modelsEndpoint string) []localModel {
 	res, err := http.Get(modelsEndpoint)
 	if err != nil {
 		logging.Debug("Failed to list local models",
@@ -152,7 +162,72 @@ func listLocalModels(modelsEndpoint string) []localModel {
 		supportedModels = append(supportedModels, model)
 	}
 
+	// 2025.06.15 Kawata added orgEndpoint to fetch details such as context_length from ollama
+	// 2025.06.15 Kawata added context_length fetching from ollama
+	url, err := url.Parse(orgEndpoint)
+	if err == nil {
+		type ApiShowBody struct {
+			ModelInfo map[string]any `json:"model_info"`
+		}
+		url.Path = "/api/show"
+		for i, m := range supportedModels {
+			bodyMap := map[string]any{"name": m.ID}
+			bodyJson, err := json.Marshal(bodyMap)
+			if err != nil {
+				logging.Debug(fmt.Sprintf("Failed to build body json for POST %s", url.Path), "error", err, "model", m.ID)
+				continue
+			}
+			// POST request to orgEndpoint + /api/show with JSON like {"name": <model_name>}
+			res, err := http.Post(url.String(), "application/json", bytes.NewBuffer(bodyJson))
+			if err != nil {
+				logging.Debug(fmt.Sprintf("Failed to POST %s", url.Path), "error", err, "model", m.ID)
+				continue
+			}
+			defer res.Body.Close()
+			if res.StatusCode != http.StatusOK {
+				logging.Debug(fmt.Sprintf("Failed to POST %s with status-code = %d", url.Path, res.StatusCode), "error", err, "model", m.ID)
+				continue
+			}
+			var apiShowBody = ApiShowBody{}
+			if err = json.NewDecoder(res.Body).Decode(&apiShowBody); err != nil {
+				logging.Debug(fmt.Sprintf("Failed to parse model_info of the model: %s", m.ID), "error", err, "endpoint", modelsEndpoint)
+				continue
+			}
+			var contextLength int64 = 0
+			for k, v := range apiShowBody.ModelInfo {
+				if strings.Contains(k, "context") && strings.Contains(k, "length") {
+					cl, err := anyToInt64(v)
+					if err != nil {
+						logging.Debug(fmt.Sprintf("Failed to parse %s of the model: %s", k, m.ID), "error", err)
+					} else {
+						contextLength = cl
+					}
+					continue
+				}
+			}
+			supportedModels[i].LoadedContextLength = contextLength
+		}
+	} else {
+		logging.Debug("Failed to parse orgEndpoint", "error", err, "orgEndpoint", orgEndpoint)
+	}
+
 	return supportedModels
+}
+
+// 2025.06.15 Kawata added context_length fetching from ollama
+func anyToInt64(a any) (int64, error) {
+	switch v := a.(type) {
+	case int:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case float64:
+		return int64(v), nil
+	case string:
+		return strconv.ParseInt(v, 10, 64)
+	default:
+		return 0, fmt.Errorf("unsupported type: %T", a)
+	}
 }
 
 func loadLocalModels(models []localModel) {
