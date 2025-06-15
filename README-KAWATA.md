@@ -15,6 +15,10 @@ go install golang.org/x/tools/gopls@latest
 cat <<EOF > ~/.opencode.json
 {
   "providers": {
+    "openai": {
+      "apiKey": "<OPENAI_API_KEY>",
+      "disabled": false
+    },
     "gemini": {
       "apiKey": "<GEMINI_API_KEY>",
       "disabled": false
@@ -31,11 +35,11 @@ cat <<EOF > ~/.opencode.json
   },
   "agents": {
     "coder": {
-      "model": "local.qwen3:14b",
+      "model": "gpt-4.1-mini",
       "maxTokens": 30000
     },
     "task": {
-      "model": "gemini-2.5",
+      "model": "gpt-4.1-mini",
       "maxTokens": 5000
     },
     "title": {

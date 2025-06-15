@@ -24,6 +24,7 @@ import (
 
 const (
 	PREFIX_EN = "en" // intent to write in English
+	PREFIX_XL = "xl" // xlate = translate to English
 	PREFIX_TK = "tk" // /think for qwen3
 )
 
@@ -356,7 +357,7 @@ func (a *agent) processGeneration(ctx context.Context, sessionID, content string
 
 // 2025.06.15 Kawata added completion logic for content
 func (a *agent) completeContent(ctx context.Context, content string) (lastContent string, prefixes []string, detected []string) {
-	prefixes = []string{PREFIX_EN, PREFIX_TK}
+	prefixes = []string{PREFIX_EN, PREFIX_XL, PREFIX_TK}
 	var (
 		detectedPrefixes = []string{}
 		body             = ""
@@ -377,8 +378,17 @@ func (a *agent) completeContent(ctx context.Context, content string) (lastConten
 				body += item + " "
 			}
 		}
+
+		// 2025.06.16 Kawata: LOCALの時はデフォルトで翻訳（/en で翻訳なし）、それ以外はデフォルトで翻訳なし（/xl で翻訳）
 		body = strings.TrimSpace(body)
-		if !slices.Contains(detectedPrefixes, PREFIX_EN) { // if don't have /en
+		runTranslate := false
+		isLocal := a.Model().Provider == models.ProviderLocal
+		hasEN := slices.Contains(detectedPrefixes, PREFIX_EN)
+		hasXL := slices.Contains(detectedPrefixes, PREFIX_XL)
+		if (isLocal && !hasEN) || (!isLocal && hasXL) {
+			runTranslate = true
+		}
+		if runTranslate {
 			logging.InfoPersist(fmt.Sprintf("Translating '%s' to English...", body))
 			translated, err := a.translateToEnglish(ctx, body)
 			if err != nil {
