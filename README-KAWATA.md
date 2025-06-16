@@ -12,7 +12,7 @@ go install golang.org/x/tools/gopls@latest
 ```
 # settings
 ```
-cat <<EOF > ~/.opencode.json
+cat <<EOF > ~/.cap.json
 {
   "providers": {
     "openai": {
@@ -91,7 +91,7 @@ make build-kawata
 ```
 make install
 ```
-# 本家OpenCodeに追加した機能
+# 本家CAPに追加した機能
 ## `/en` prefix と自動翻訳
 - ユーザーの入力は、基本的には全て日英翻訳されてAIに入力されるようにした
 - `/en` prefix をつけることで、そのメッセージはそのまま英語として入力することもできる

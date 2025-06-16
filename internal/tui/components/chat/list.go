@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/message"
+	"github.com/cap-ai/cap/internal/pubsub"
+	"github.com/cap-ai/cap/internal/session"
+	"github.com/cap-ai/cap/internal/tui/components/dialog"
+	"github.com/cap-ai/cap/internal/tui/styles"
+	"github.com/cap-ai/cap/internal/tui/theme"
+	"github.com/cap-ai/cap/internal/tui/util"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/tui/util"
 )
 
 type cacheItem struct {
@@ -40,28 +40,28 @@ type messagesCmp struct {
 type renderFinishedMsg struct{}
 
 type MessageKeys struct {
-	PageDown     key.Binding
-	PageUp       key.Binding
+	// PageDown     key.Binding
+	// PageUp       key.Binding
 	HalfPageUp   key.Binding
 	HalfPageDown key.Binding
 }
 
 var messageKeys = MessageKeys{
-	PageDown: key.NewBinding(
-		key.WithKeys("pgdown"),
-		key.WithHelp("f/pgdn", "page down"),
-	),
-	PageUp: key.NewBinding(
-		key.WithKeys("pgup"),
-		key.WithHelp("b/pgup", "page up"),
-	),
+	// PageDown: key.NewBinding(
+	// 	key.WithKeys("pgdown"),
+	// 	key.WithHelp("f/pgdn", "page down"),
+	// ),
+	// PageUp: key.NewBinding(
+	// 	key.WithKeys("pgup"),
+	// 	key.WithHelp("b/pgup", "page up"),
+	// ),
 	HalfPageUp: key.NewBinding(
 		key.WithKeys("ctrl+u"),
-		key.WithHelp("ctrl+u", "½ page up"),
+		key.WithHelp("ctrl+u", "⬆︎ ページを上へ"),
 	),
 	HalfPageDown: key.NewBinding(
 		key.WithKeys("ctrl+d", "ctrl+d"),
-		key.WithHelp("ctrl+d", "½ page down"),
+		key.WithHelp("ctrl+d", "⬇︎ ページを下へ"),
 	),
 }
 
@@ -89,8 +89,8 @@ func (m *messagesCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) ||
-			key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) {
+		if /* key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) || */
+		key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) {
 			u, cmd := m.viewport.Update(msg)
 			m.viewport = u
 			cmds = append(cmds, cmd)
@@ -378,21 +378,35 @@ func (m *messagesCmp) help() string {
 	text := ""
 
 	if m.app.CoderAgent.IsBusy() {
+		// text += lipgloss.JoinHorizontal(
+		// 	lipgloss.Left,
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render("press "),
+		// 	baseStyle.Foreground(t.Text()).Bold(true).Render("esc"),
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to exit cancel"),
+		// )
 		text += lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render("press "),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render("キャンセル: "),
 			baseStyle.Foreground(t.Text()).Bold(true).Render("esc"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to exit cancel"),
 		)
 	} else {
+		// text += lipgloss.JoinHorizontal(
+		// 	lipgloss.Left,
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render("press "),
+		// 	baseStyle.Foreground(t.Text()).Bold(true).Render("ctrl+s"),
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to send the message,"),
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" press "),
+		// 	baseStyle.Foreground(t.Text()).Bold(true).Render("enter"),
+		// 	baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to add a new line"),
+		// )
 		text += lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render("press "),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render("改行: "),
 			baseStyle.Foreground(t.Text()).Bold(true).Render("enter"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" to send the message,"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" write"),
-			baseStyle.Foreground(t.Text()).Bold(true).Render(" \\"),
-			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(" and enter to add a new line"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(", 送信: "),
+			baseStyle.Foreground(t.Text()).Bold(true).Render("ctrl+s"),
+			baseStyle.Foreground(t.TextMuted()).Bold(true).Render(", ヘルプ: "),
+			baseStyle.Foreground(t.Text()).Bold(true).Render("ctrl+?"),
 		)
 	}
 	return baseStyle.
@@ -461,8 +475,8 @@ func (m *messagesCmp) SetSession(session session.Session) tea.Cmd {
 
 func (m *messagesCmp) BindingKeys() []key.Binding {
 	return []key.Binding{
-		m.viewport.KeyMap.PageDown,
-		m.viewport.KeyMap.PageUp,
+		// m.viewport.KeyMap.PageDown,
+		// m.viewport.KeyMap.PageUp,
 		m.viewport.KeyMap.HalfPageUp,
 		m.viewport.KeyMap.HalfPageDown,
 	}
@@ -473,8 +487,8 @@ func NewMessagesCmp(app *app.App) tea.Model {
 	s.Spinner = spinner.Pulse
 	vp := viewport.New(0, 0)
 	attachmets := viewport.New(0, 0)
-	vp.KeyMap.PageUp = messageKeys.PageUp
-	vp.KeyMap.PageDown = messageKeys.PageDown
+	// vp.KeyMap.PageUp = messageKeys.PageUp
+	// vp.KeyMap.PageDown = messageKeys.PageDown
 	vp.KeyMap.HalfPageUp = messageKeys.HalfPageUp
 	vp.KeyMap.HalfPageDown = messageKeys.HalfPageDown
 	return &messagesCmp{

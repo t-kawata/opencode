@@ -7,16 +7,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/aymanbagabas/go-udiff"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/tui/theme"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
@@ -344,7 +345,7 @@ func SyntaxHighlight(w io.Writer, source, fileName, formatter string, bg lipglos
 
 	// Dynamic theme based on current theme values
 	syntaxThemeXml := fmt.Sprintf(`
-	<style name="opencode-theme">
+	<style name="cap-theme">
 	<!-- Base colors -->
 	<entry type="Background" style="bg:%s"/>
 	<entry type="Text" style="%s"/>
@@ -577,15 +578,15 @@ func lipglossToHex(color lipgloss.Color) string {
 
 // applyHighlighting applies intra-line highlighting to a piece of text
 func applyHighlighting(content string, segments []Segment, segmentType LineType, highlightBg lipgloss.AdaptiveColor) string {
-	// Find all ANSI sequences in the content
 	ansiRegex := regexp.MustCompile(`\x1b(?:[@-Z\\-_]|\[[0-9?]*(?:;[0-9?]*)*[@-~])`)
 	ansiMatches := ansiRegex.FindAllStringIndex(content, -1)
 
-	// Build a mapping of visible character positions to their actual indices
+	// マッピング: 可視文字インデックス => ANSIシーケンス
 	visibleIdx := 0
 	ansiSequences := make(map[int]string)
-	lastAnsiSeq := "\x1b[0m" // Default reset sequence
+	lastAnsiSeq := "\x1b[0m"
 
+	// ANSIシーケンスをスキップしつつ、可視文字インデックスを管理
 	for i := 0; i < len(content); {
 		isAnsi := false
 		for _, match := range ansiMatches {
@@ -601,29 +602,35 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 			continue
 		}
 
-		// For non-ANSI positions, store the last ANSI sequence
+		// 可視文字インデックスにANSIシーケンスを記録
 		if _, exists := ansiSequences[visibleIdx]; !exists {
 			ansiSequences[visibleIdx] = lastAnsiSeq
 		}
+
+		// マルチバイト文字の場合はルーン単位で進める
+		_, size := utf8.DecodeRuneInString(content[i:])
+		if size == 0 {
+			break
+		}
+		i += size
 		visibleIdx++
-		i++
 	}
 
-	// Apply highlighting
+	// ハイライト適用
 	var sb strings.Builder
 	inSelection := false
 	currentPos := 0
 
-	// Get the appropriate color based on terminal background
 	bgColor := lipgloss.Color(getColor(highlightBg))
 	fgColor := lipgloss.Color(getColor(theme.CurrentTheme().Background()))
 
+	// ルーン単位で処理
 	for i := 0; i < len(content); {
-		// Check if we're at an ANSI sequence
+		// ANSIシーケンスのチェック
 		isAnsi := false
 		for _, match := range ansiMatches {
 			if match[0] == i {
-				sb.WriteString(content[match[0]:match[1]]) // Preserve ANSI sequence
+				sb.WriteString(content[match[0]:match[1]]) // ANSIシーケンスをそのまま追加
 				i = match[1]
 				isAnsi = true
 				break
@@ -633,7 +640,7 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 			continue
 		}
 
-		// Check for segment boundaries
+		// セグメント境界チェック
 		for _, seg := range segments {
 			if seg.Type == segmentType {
 				if currentPos == seg.Start {
@@ -645,14 +652,18 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 			}
 		}
 
-		// Get current character
-		char := string(content[i])
+		// ルーンを取り出す
+		r, size := utf8.DecodeRuneInString(content[i:])
+		if size == 0 {
+			break
+		}
+		char := string(r)
 
 		if inSelection {
-			// Get the current styling
+			// 現在のスタイルを取得
 			currentStyle := ansiSequences[currentPos]
 
-			// Apply foreground and background highlight
+			// ハイライト適用
 			sb.WriteString("\x1b[38;2;")
 			r, g, b, _ := fgColor.RGBA()
 			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
@@ -660,22 +671,121 @@ func applyHighlighting(content string, segments []Segment, segmentType LineType,
 			r, g, b, _ = bgColor.RGBA()
 			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
 			sb.WriteString(char)
-			// Reset foreground and background
 			sb.WriteString("\x1b[39m")
 
-			// Reapply the original ANSI sequence
+			// 元のANSIシーケンスを再適用
 			sb.WriteString(currentStyle)
 		} else {
-			// Not in selection, just copy the character
 			sb.WriteString(char)
 		}
 
 		currentPos++
-		i++
+		i += size
 	}
 
 	return sb.String()
 }
+
+// func applyHighlighting(content string, segments []Segment, segmentType LineType, highlightBg lipgloss.AdaptiveColor) string {
+// 	// Find all ANSI sequences in the content
+// 	ansiRegex := regexp.MustCompile(`\x1b(?:[@-Z\\-_]|\[[0-9?]*(?:;[0-9?]*)*[@-~])`)
+// 	ansiMatches := ansiRegex.FindAllStringIndex(content, -1)
+
+// 	// Build a mapping of visible character positions to their actual indices
+// 	visibleIdx := 0
+// 	ansiSequences := make(map[int]string)
+// 	lastAnsiSeq := "\x1b[0m" // Default reset sequence
+
+// 	for i := 0; i < len(content); {
+// 		isAnsi := false
+// 		for _, match := range ansiMatches {
+// 			if match[0] == i {
+// 				ansiSequences[visibleIdx] = content[match[0]:match[1]]
+// 				lastAnsiSeq = content[match[0]:match[1]]
+// 				i = match[1]
+// 				isAnsi = true
+// 				break
+// 			}
+// 		}
+// 		if isAnsi {
+// 			continue
+// 		}
+
+// 		// For non-ANSI positions, store the last ANSI sequence
+// 		if _, exists := ansiSequences[visibleIdx]; !exists {
+// 			ansiSequences[visibleIdx] = lastAnsiSeq
+// 		}
+// 		visibleIdx++
+// 		i++
+// 	}
+
+// 	// Apply highlighting
+// 	var sb strings.Builder
+// 	inSelection := false
+// 	currentPos := 0
+
+// 	// Get the appropriate color based on terminal background
+// 	bgColor := lipgloss.Color(getColor(highlightBg))
+// 	fgColor := lipgloss.Color(getColor(theme.CurrentTheme().Background()))
+
+// 	for i := 0; i < len(content); {
+// 		// Check if we're at an ANSI sequence
+// 		isAnsi := false
+// 		for _, match := range ansiMatches {
+// 			if match[0] == i {
+// 				sb.WriteString(content[match[0]:match[1]]) // Preserve ANSI sequence
+// 				i = match[1]
+// 				isAnsi = true
+// 				break
+// 			}
+// 		}
+// 		if isAnsi {
+// 			continue
+// 		}
+
+// 		// Check for segment boundaries
+// 		for _, seg := range segments {
+// 			if seg.Type == segmentType {
+// 				if currentPos == seg.Start {
+// 					inSelection = true
+// 				}
+// 				if currentPos == seg.End {
+// 					inSelection = false
+// 				}
+// 			}
+// 		}
+
+// 		// Get current character
+// 		char := string(content[i])
+
+// 		if inSelection {
+// 			// Get the current styling
+// 			currentStyle := ansiSequences[currentPos]
+
+// 			// Apply foreground and background highlight
+// 			sb.WriteString("\x1b[38;2;")
+// 			r, g, b, _ := fgColor.RGBA()
+// 			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
+// 			sb.WriteString("\x1b[48;2;")
+// 			r, g, b, _ = bgColor.RGBA()
+// 			sb.WriteString(fmt.Sprintf("%d;%d;%dm", r>>8, g>>8, b>>8))
+// 			sb.WriteString(char)
+// 			// Reset foreground and background
+// 			sb.WriteString("\x1b[39m")
+
+// 			// Reapply the original ANSI sequence
+// 			sb.WriteString(currentStyle)
+// 		} else {
+// 			// Not in selection, just copy the character
+// 			sb.WriteString(char)
+// 		}
+
+// 		currentPos++
+// 		i++
+// 	}
+
+// 	return sb.String()
+// }
 
 // renderLeftColumn formats the left side of a side-by-side diff
 func renderLeftColumn(fileName string, dl *DiffLine, colWidth int) string {

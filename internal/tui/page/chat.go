@@ -4,17 +4,17 @@ import (
 	"context"
 	"strings"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/completions"
+	"github.com/cap-ai/cap/internal/message"
+	"github.com/cap-ai/cap/internal/session"
+	"github.com/cap-ai/cap/internal/tui/components/chat"
+	"github.com/cap-ai/cap/internal/tui/components/dialog"
+	"github.com/cap-ai/cap/internal/tui/layout"
+	"github.com/cap-ai/cap/internal/tui/util"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/completions"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/components/chat"
-	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
-	"github.com/opencode-ai/opencode/internal/tui/util"
 )
 
 var ChatPage PageID = "chat"
@@ -35,18 +35,32 @@ type ChatKeyMap struct {
 	Cancel               key.Binding
 }
 
+//	var keyMap = ChatKeyMap{
+//		ShowCompletionDialog: key.NewBinding(
+//			key.WithKeys("@"),
+//			key.WithHelp("@", "Complete"),
+//		),
+//		NewSession: key.NewBinding(
+//			key.WithKeys("ctrl+n"),
+//			key.WithHelp("ctrl+n", "new session"),
+//		),
+//		Cancel: key.NewBinding(
+//			key.WithKeys("esc"),
+//			key.WithHelp("esc", "cancel"),
+//		),
+//	}
 var keyMap = ChatKeyMap{
 	ShowCompletionDialog: key.NewBinding(
 		key.WithKeys("@"),
-		key.WithHelp("@", "Complete"),
+		key.WithHelp("@", "ファイルパス探索"),
 	),
 	NewSession: key.NewBinding(
 		key.WithKeys("ctrl+n"),
-		key.WithHelp("ctrl+n", "new session"),
+		key.WithHelp("ctrl+n", "新しいセッション"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
+		key.WithHelp("esc", "閉じたり戻ったり"),
 	),
 }
 
@@ -76,7 +90,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if p.app.CoderAgent.IsBusy() {
 			return p, util.ReportWarn("Agent is busy, please wait before executing a command...")
 		}
-		
+
 		// Process the command content with arguments if any
 		content := msg.Content
 		if msg.Args != nil {
@@ -86,7 +100,7 @@ func (p *chatPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				content = strings.ReplaceAll(content, placeholder, value)
 			}
 		}
-		
+
 		// Handle custom command execution
 		cmd := p.sendMessage(content, nil)
 		if cmd != nil {

@@ -12,11 +12,11 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/bedrock"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/llm/models"
+	"github.com/cap-ai/cap/internal/llm/tools"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/message"
 )
 
 type anthropicOptions struct {

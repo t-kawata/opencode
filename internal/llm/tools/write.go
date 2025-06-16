@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/diff"
-	"github.com/opencode-ai/opencode/internal/history"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/permission"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/diff"
+	"github.com/cap-ai/cap/internal/history"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/lsp"
+	"github.com/cap-ai/cap/internal/permission"
 )
 
 type WriteParams struct {

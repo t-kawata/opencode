@@ -12,7 +12,7 @@ while getopts ":o:a:" opt; do
 done
 
 CMD=""
-BINARY_NAME="oc"
+BINARY_NAME="cap"
 
 if [ "${OS}" = "" ]; then
   echo "Let's take a OS of this env."

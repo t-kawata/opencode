@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/opencode-ai/opencode/internal/llm/models"
+	"github.com/cap-ai/cap/internal/llm/models"
 )
 
 type MessageRole string

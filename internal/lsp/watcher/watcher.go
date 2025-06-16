@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/lsp"
+	"github.com/cap-ai/cap/internal/lsp/protocol"
 	"github.com/fsnotify/fsnotify"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/lsp/protocol"
 )
 
 // WorkspaceWatcher manages LSP file watching

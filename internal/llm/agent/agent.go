@@ -10,16 +10,16 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	"github.com/opencode-ai/opencode/internal/llm/prompt"
-	"github.com/opencode-ai/opencode/internal/llm/provider"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/permission"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/session"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/llm/models"
+	"github.com/cap-ai/cap/internal/llm/prompt"
+	"github.com/cap-ai/cap/internal/llm/provider"
+	"github.com/cap-ai/cap/internal/llm/tools"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/message"
+	"github.com/cap-ai/cap/internal/permission"
+	"github.com/cap-ai/cap/internal/pubsub"
+	"github.com/cap-ai/cap/internal/session"
 )
 
 const (

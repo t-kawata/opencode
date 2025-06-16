@@ -97,7 +97,7 @@
       "type": "object"
     }
   },
-  "description": "Configuration schema for the OpenCode application",
+  "description": "Configuration schema for the CAP application",
   "properties": {
     "agents": {
       "additionalProperties": {
@@ -216,12 +216,12 @@
         ".cursor/rules/",
         "CLAUDE.md",
         "CLAUDE.local.md",
-        "opencode.md",
-        "opencode.local.md",
-        "OpenCode.md",
-        "OpenCode.local.md",
-        "OPENCODE.md",
-        "OPENCODE.local.md"
+        "cap.md",
+        "cap.local.md",
+        "CAP.md",
+        "CAP.local.md",
+        "CAP.md",
+        "CAP.local.md"
       ],
       "description": "Context paths for the application",
       "items": {
@@ -233,7 +233,7 @@
       "description": "Storage configuration",
       "properties": {
         "directory": {
-          "default": ".opencode",
+          "default": ".cap",
           "description": "Directory where application data is stored",
           "type": "string"
         }
@@ -374,10 +374,10 @@
       "description": "Terminal User Interface configuration",
       "properties": {
         "theme": {
-          "default": "opencode",
+          "default": "cap",
           "description": "TUI theme name",
           "enum": [
-            "opencode",
+            "cap",
             "catppuccin",
             "dracula",
             "flexoki",
@@ -397,6 +397,6 @@
       "type": "string"
     }
   },
-  "title": "OpenCode Configuration",
+  "title": "CAP Configuration",
   "type": "object"
 }

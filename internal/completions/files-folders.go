@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/cap-ai/cap/internal/fileutil"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/tui/components/dialog"
 	"github.com/lithammer/fuzzysearch/fuzzy"
-	"github.com/opencode-ai/opencode/internal/fileutil"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
 )
 
 type filesAndFoldersContextGroup struct {

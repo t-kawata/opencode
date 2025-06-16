@@ -6,15 +6,15 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/diff"
+	"github.com/cap-ai/cap/internal/history"
+	"github.com/cap-ai/cap/internal/pubsub"
+	"github.com/cap-ai/cap/internal/session"
+	"github.com/cap-ai/cap/internal/tui/styles"
+	"github.com/cap-ai/cap/internal/tui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/diff"
-	"github.com/opencode-ai/opencode/internal/history"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
 )
 
 type sidebarCmp struct {

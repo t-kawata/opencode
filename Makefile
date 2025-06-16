@@ -1,9 +1,9 @@
 build-kawata:
-	rm ./dist/oc-*
+	rm -rf ./dist/*
 	./build
 install:
-	cp ./dist/oc-* ~/.local/bin/oc
+	cp ./dist/cap-* ~/.local/bin/cap
 build-install:
-	rm ./dist/oc-*
+	rm -rf ./dist/*
 	./build
-	cp ./dist/oc-* ~/.local/bin/oc
+	cp ./dist/cap-* ~/.local/bin/cap

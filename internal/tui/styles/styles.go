@@ -1,8 +1,8 @@
 package styles
 
 import (
+	"github.com/cap-ai/cap/internal/tui/theme"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
 )
 
 var (

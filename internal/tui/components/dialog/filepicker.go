@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/message"
+	"github.com/cap-ai/cap/internal/tui/image"
+	"github.com/cap-ai/cap/internal/tui/styles"
+	"github.com/cap-ai/cap/internal/tui/theme"
+	"github.com/cap-ai/cap/internal/tui/util"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/tui/image"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/tui/util"
 )
 
 const (

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/opencode-ai/opencode/internal/llm/models"
-	"github.com/opencode-ai/opencode/internal/llm/tools"
-	"github.com/opencode-ai/opencode/internal/message"
+	"github.com/cap-ai/cap/internal/llm/models"
+	"github.com/cap-ai/cap/internal/llm/tools"
+	"github.com/cap-ai/cap/internal/message"
 )
 
 type EventType string
@@ -133,8 +133,8 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 		clientOptions.openaiOptions = append(clientOptions.openaiOptions,
 			WithOpenAIBaseURL("https://openrouter.ai/api/v1"),
 			WithOpenAIExtraHeaders(map[string]string{
-				"HTTP-Referer": "opencode.ai",
-				"X-Title":      "OpenCode",
+				"HTTP-Referer": "cap.ai",
+				"X-Title":      "CAP",
 			}),
 		)
 		return &baseProvider[OpenAIClient]{

@@ -2,14 +2,15 @@ package dialog
 
 import (
 	"fmt"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/tui/util"
+	"github.com/cap-ai/cap/internal/tui/styles"
+	"github.com/cap-ai/cap/internal/tui/theme"
+	"github.com/cap-ai/cap/internal/tui/util"
 )
 
 type argumentsDialogKeyMap struct {
@@ -75,7 +76,7 @@ func NewMultiArgumentsDialogCmp(commandID, content string, argNames []string) Mu
 		ti.PlaceholderStyle = ti.PlaceholderStyle.Background(t.Background())
 		ti.PromptStyle = ti.PromptStyle.Background(t.Background())
 		ti.TextStyle = ti.TextStyle.Background(t.Background())
-		
+
 		// Only focus the first input initially
 		if i == 0 {
 			ti.Focus()
@@ -89,11 +90,11 @@ func NewMultiArgumentsDialogCmp(commandID, content string, argNames []string) Mu
 	}
 
 	return MultiArgumentsDialogCmp{
-		inputs:    inputs,
-		keys:      argumentsDialogKeyMap{},
-		commandID: commandID,
-		content:   content,
-		argNames:  argNames,
+		inputs:     inputs,
+		keys:       argumentsDialogKeyMap{},
+		commandID:  commandID,
+		content:    content,
+		argNames:   argNames,
 		focusIndex: 0,
 	}
 }
@@ -108,7 +109,7 @@ func (m MultiArgumentsDialogCmp) Init() tea.Cmd {
 			m.inputs[i].Blur()
 		}
 	}
-	
+
 	return textinput.Blink
 }
 
@@ -206,13 +207,13 @@ func (m MultiArgumentsDialogCmp) View() string {
 			Width(maxWidth).
 			Padding(1, 1, 0, 1).
 			Background(t.Background())
-			
+
 		if i == m.focusIndex {
 			labelStyle = labelStyle.Foreground(t.Primary()).Bold(true)
 		} else {
 			labelStyle = labelStyle.Foreground(t.TextMuted())
 		}
-		
+
 		label := labelStyle.Render(m.argNames[i] + ":")
 
 		field := lipgloss.NewStyle().

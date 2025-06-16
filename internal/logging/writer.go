@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cap-ai/cap/internal/pubsub"
 	"github.com/go-logfmt/logfmt"
-	"github.com/opencode-ai/opencode/internal/pubsub"
 )
 
 const (

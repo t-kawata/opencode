@@ -5,23 +5,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/llm/agent"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/permission"
+	"github.com/cap-ai/cap/internal/pubsub"
+	"github.com/cap-ai/cap/internal/session"
+	"github.com/cap-ai/cap/internal/tui/components/chat"
+	"github.com/cap-ai/cap/internal/tui/components/core"
+	"github.com/cap-ai/cap/internal/tui/components/dialog"
+	"github.com/cap-ai/cap/internal/tui/layout"
+	"github.com/cap-ai/cap/internal/tui/page"
+	"github.com/cap-ai/cap/internal/tui/theme"
+	"github.com/cap-ai/cap/internal/tui/util"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/llm/agent"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/permission"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/components/chat"
-	"github.com/opencode-ai/opencode/internal/tui/components/core"
-	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
-	"github.com/opencode-ai/opencode/internal/tui/page"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/tui/util"
 )
 
 type keyMap struct {
@@ -41,53 +41,92 @@ const (
 	quitKey = "q"
 )
 
+// var keys = keyMap{
+// 	Logs: key.NewBinding(
+// 		key.WithKeys("ctrl+l"),
+// 		key.WithHelp("ctrl+l", "logs"),
+// 	),
+
+// 	Quit: key.NewBinding(
+// 		key.WithKeys("ctrl+c"),
+// 		key.WithHelp("ctrl+c", "quit"),
+// 	),
+// 	Help: key.NewBinding(
+// 		key.WithKeys("ctrl+_", "ctrl+h"),
+// 		key.WithHelp("ctrl+?", "toggle help"),
+// 	),
+
+// 	SwitchSession: key.NewBinding(
+// 		key.WithKeys("ctrl+j"),
+// 		key.WithHelp("ctrl+j", "jump session"),
+// 	),
+
+// 	Commands: key.NewBinding(
+// 		key.WithKeys("ctrl+k"),
+// 		key.WithHelp("ctrl+k", "commands"),
+// 	),
+// 	Filepicker: key.NewBinding(
+// 		key.WithKeys("ctrl+f"),
+// 		key.WithHelp("ctrl+f", "select files to upload"),
+// 	),
+// 	Models: key.NewBinding(
+// 		key.WithKeys("ctrl+o"),
+// 		key.WithHelp("ctrl+o", "model selection"),
+// 	),
+
+// 	SwitchTheme: key.NewBinding(
+// 		key.WithKeys("ctrl+t"),
+// 		key.WithHelp("ctrl+t", "switch theme"),
+// 	),
+// }
+
 var keys = keyMap{
 	Logs: key.NewBinding(
 		key.WithKeys("ctrl+l"),
-		key.WithHelp("ctrl+l", "logs"),
+		key.WithHelp("ctrl+l", "ログ表示"),
 	),
 
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
-		key.WithHelp("ctrl+c", "quit"),
+		key.WithHelp("ctrl+c", "システム終了"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("ctrl+_", "ctrl+h"),
-		key.WithHelp("ctrl+?", "toggle help"),
+		key.WithHelp("ctrl+?", "ヘルプ表示"),
 	),
 
 	SwitchSession: key.NewBinding(
-		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "switch session"),
+		key.WithKeys("ctrl+j"),
+		key.WithHelp("ctrl+j", "セッション移動"),
 	),
 
 	Commands: key.NewBinding(
 		key.WithKeys("ctrl+k"),
-		key.WithHelp("ctrl+k", "commands"),
+		key.WithHelp("ctrl+k", "コマンド一覧"),
 	),
-	Filepicker: key.NewBinding(
-		key.WithKeys("ctrl+f"),
-		key.WithHelp("ctrl+f", "select files to upload"),
-	),
+	// Filepicker: key.NewBinding(
+	// 	key.WithKeys("ctrl+f"),
+	// 	key.WithHelp("ctrl+f", "ファイルアップロード"),
+	// ),
 	Models: key.NewBinding(
 		key.WithKeys("ctrl+o"),
-		key.WithHelp("ctrl+o", "model selection"),
+		key.WithHelp("ctrl+o", "モデル切り替え"),
 	),
 
 	SwitchTheme: key.NewBinding(
 		key.WithKeys("ctrl+t"),
-		key.WithHelp("ctrl+t", "switch theme"),
+		key.WithHelp("ctrl+t", "テーマ切り替え"),
 	),
 }
 
-var helpEsc = key.NewBinding(
-	key.WithKeys("?"),
-	key.WithHelp("?", "toggle help"),
-)
+// var helpEsc = key.NewBinding(
+// 	key.WithKeys("?"),
+// 	key.WithHelp("?", "toggle help"),
+// )
 
 var returnKey = key.NewBinding(
 	key.WithKeys("esc"),
-	key.WithHelp("esc", "close"),
+	key.WithHelp("esc", "閉じたり戻ったり"),
 )
 
 var logsKeyReturnKey = key.NewBinding(
@@ -557,18 +596,18 @@ func (a appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			a.showHelp = !a.showHelp
 			return a, nil
-		case key.Matches(msg, helpEsc):
-			if a.app.CoderAgent.IsBusy() {
-				if a.showQuit {
-					return a, nil
-				}
-				a.showHelp = !a.showHelp
-				return a, nil
-			}
-		case key.Matches(msg, keys.Filepicker):
-			a.showFilepicker = !a.showFilepicker
-			a.filepicker.ToggleFilepicker(a.showFilepicker)
-			return a, nil
+			// case key.Matches(msg, helpEsc):
+			// 	if a.app.CoderAgent.IsBusy() {
+			// 		if a.showQuit {
+			// 			return a, nil
+			// 		}
+			// 		a.showHelp = !a.showHelp
+			// 		return a, nil
+			// 	}
+			// case key.Matches(msg, keys.Filepicker):
+			// 	a.showFilepicker = !a.showFilepicker
+			// 	a.filepicker.ToggleFilepicker(a.showFilepicker)
+			// 	return a, nil
 		}
 	default:
 		f, filepickerCmd := a.filepicker.Update(msg)
@@ -775,9 +814,9 @@ func (a appModel) View() string {
 		if a.currentPage == page.LogsPage {
 			bindings = append(bindings, logsKeyReturnKey)
 		}
-		if !a.app.CoderAgent.IsBusy() {
-			bindings = append(bindings, helpEsc)
-		}
+		// if !a.app.CoderAgent.IsBusy() {
+		// 	bindings = append(bindings, helpEsc)
+		// }
 		a.help.SetBindings(bindings)
 
 		overlay := a.help.View()
@@ -922,16 +961,17 @@ func New(app *app.App) tea.Model {
 	}
 
 	model.RegisterCommand(dialog.Command{
-		ID:          "init",
-		Title:       "Initialize Project",
-		Description: "Create/Update the OpenCode.md memory file",
+		ID:    "init",
+		Title: "Initialize Project",
+		// Description: "Create/Update the CAP.md memory file",
+		Description: "CAP.md というプロジェクト記憶ファイルを作成・更新します。",
 		Handler: func(cmd dialog.Command) tea.Cmd {
-			prompt := `Please analyze this codebase and create a OpenCode.md file containing:
+			prompt := `Please analyze this codebase and create a CAP.md file containing:
 1. Build/lint/test commands - especially for running a single test
 2. Code style guidelines including imports, formatting, types, naming conventions, error handling, etc.
 
 The file you create will be given to agentic coding agents (such as yourself) that operate in this repository. Make it about 20 lines long.
-If there's already a opencode.md, improve it.
+If there's already a cap.md, improve it.
 If there are Cursor rules (in .cursor/rules/ or .cursorrules) or Copilot rules (in .github/copilot-instructions.md), make sure to include them.`
 			return tea.Batch(
 				util.CmdHandler(chat.SendMsg{
@@ -942,9 +982,10 @@ If there are Cursor rules (in .cursor/rules/ or .cursorrules) or Copilot rules (
 	})
 
 	model.RegisterCommand(dialog.Command{
-		ID:          "compact",
-		Title:       "Compact Session",
-		Description: "Summarize the current session and create a new one with the summary",
+		ID:    "compact",
+		Title: "Compact Session",
+		// Description: "Summarize the current session and create a new one with the summary",
+		Description: "トークン削減の為、ここまでの会話を要約してコンパクトにします。",
 		Handler: func(cmd dialog.Command) tea.Cmd {
 			return func() tea.Msg {
 				return startCompactSessionMsg{}

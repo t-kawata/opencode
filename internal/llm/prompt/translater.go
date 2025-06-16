@@ -1,6 +1,6 @@
 package prompt
 
-import "github.com/opencode-ai/opencode/internal/llm/models"
+import "github.com/cap-ai/cap/internal/llm/models"
 
 func TranslaterPrompt(_ models.ModelProvider) string {
 	return `You are a professional Japanese to English translator, an expert in prompt translation that conveys precise intent to LLM.\n` +

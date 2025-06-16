@@ -8,19 +8,19 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/message"
+	"github.com/cap-ai/cap/internal/session"
+	"github.com/cap-ai/cap/internal/tui/components/dialog"
+	"github.com/cap-ai/cap/internal/tui/layout"
+	"github.com/cap-ai/cap/internal/tui/styles"
+	"github.com/cap-ai/cap/internal/tui/theme"
+	"github.com/cap-ai/cap/internal/tui/util"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/message"
-	"github.com/opencode-ai/opencode/internal/session"
-	"github.com/opencode-ai/opencode/internal/tui/components/dialog"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
-	"github.com/opencode-ai/opencode/internal/tui/theme"
-	"github.com/opencode-ai/opencode/internal/tui/util"
 )
 
 type editorCmp struct {
@@ -38,41 +38,52 @@ type EditorKeyMaps struct {
 	OpenEditor key.Binding
 }
 
-type bluredEditorKeyMaps struct {
-	Send       key.Binding
-	Focus      key.Binding
-	OpenEditor key.Binding
-}
+//	type bluredEditorKeyMaps struct {
+//		Send       key.Binding
+//		Focus      key.Binding
+//		OpenEditor key.Binding
+//	}
 type DeleteAttachmentKeyMaps struct {
-	AttachmentDeleteMode key.Binding
-	Escape               key.Binding
-	DeleteAllAttachments key.Binding
+	// AttachmentDeleteMode key.Binding
+	Escape key.Binding
+	// DeleteAllAttachments key.Binding
 }
+
+// var editorMaps = EditorKeyMaps{
+// 	Send: key.NewBinding(
+// 		key.WithKeys("ctrl+s"),
+// 		key.WithHelp("ctrl+s", "send message"),
+// 	),
+// 	OpenEditor: key.NewBinding(
+// 		key.WithKeys("ctrl+e"),
+// 		key.WithHelp("ctrl+e", "open editor"),
+// 	),
+// }
 
 var editorMaps = EditorKeyMaps{
 	Send: key.NewBinding(
-		key.WithKeys("enter", "ctrl+s"),
-		key.WithHelp("enter", "send message"),
+		key.WithKeys("ctrl+s"),
+		key.WithHelp("ctrl+s", "メッセージ送信"),
 	),
 	OpenEditor: key.NewBinding(
 		key.WithKeys("ctrl+e"),
-		key.WithHelp("ctrl+e", "open editor"),
+		key.WithHelp("ctrl+e", "エディタを開く"),
 	),
 }
 
 var DeleteKeyMaps = DeleteAttachmentKeyMaps{
-	AttachmentDeleteMode: key.NewBinding(
-		key.WithKeys("ctrl+r"),
-		key.WithHelp("ctrl+r+{i}", "delete attachment at index i"),
-	),
+	// AttachmentDeleteMode: key.NewBinding(
+	// 	key.WithKeys("ctrl+r"),
+	// 	key.WithHelp("ctrl+r+{i}", "delete attachment at index i"),
+	// ),
 	Escape: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel delete mode"),
+		key.WithHelp("esc", "閉じたり戻ったり"),
 	),
-	DeleteAllAttachments: key.NewBinding(
-		key.WithKeys("r"),
-		key.WithHelp("ctrl+r+r", "delete all attchments"),
-	),
+	// DeleteAllAttachments: key.NewBinding(
+	// 	key.WithKeys("r"),
+	// 	key.WithHelp("ctrl+r+r", "delete all attchments"),
+	// ),
 }
 
 const (
@@ -163,15 +174,15 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.attachments = append(m.attachments, msg.Attachment)
 	case tea.KeyMsg:
-		if key.Matches(msg, DeleteKeyMaps.AttachmentDeleteMode) {
-			m.deleteMode = true
-			return m, nil
-		}
-		if key.Matches(msg, DeleteKeyMaps.DeleteAllAttachments) && m.deleteMode {
-			m.deleteMode = false
-			m.attachments = nil
-			return m, nil
-		}
+		// if key.Matches(msg, DeleteKeyMaps.AttachmentDeleteMode) {
+		// 	m.deleteMode = true
+		// 	return m, nil
+		// }
+		// if key.Matches(msg, DeleteKeyMaps.DeleteAllAttachments) && m.deleteMode {
+		// 	m.deleteMode = false
+		// 	m.attachments = nil
+		// 	return m, nil
+		// }
 		if m.deleteMode && len(msg.Runes) > 0 && unicode.IsDigit(msg.Runes[0]) {
 			num := int(msg.Runes[0] - '0')
 			m.deleteMode = false
@@ -184,8 +195,8 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		if key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) ||
-			key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) {
+		if /* key.Matches(msg, messageKeys.PageUp) || key.Matches(msg, messageKeys.PageDown) || */
+		key.Matches(msg, messageKeys.HalfPageUp) || key.Matches(msg, messageKeys.HalfPageDown) {
 			return m, nil
 		}
 		if key.Matches(msg, editorMaps.OpenEditor) {
@@ -200,13 +211,8 @@ func (m *editorCmp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Hanlde Enter key
 		if m.textarea.Focused() && key.Matches(msg, editorMaps.Send) {
-			value := m.textarea.Value()
-			if len(value) > 0 && value[len(value)-1] == '\\' {
-				// If the last character is a backslash, remove it and add a newline
-				m.textarea.SetValue(value[:len(value)-1] + "\n")
-				return m, nil
-			} else {
-				// Otherwise, send the message
+			currentValue := m.textarea.Value()
+			if strings.TrimSpace(currentValue) != "" {
 				return m, m.send()
 			}
 		}

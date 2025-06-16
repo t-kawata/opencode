@@ -1,12 +1,12 @@
 package page
 
 import (
+	"github.com/cap-ai/cap/internal/tui/components/logs"
+	"github.com/cap-ai/cap/internal/tui/layout"
+	"github.com/cap-ai/cap/internal/tui/styles"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/opencode-ai/opencode/internal/tui/components/logs"
-	"github.com/opencode-ai/opencode/internal/tui/layout"
-	"github.com/opencode-ai/opencode/internal/tui/styles"
 )
 
 var LogsPage PageID = "logs"

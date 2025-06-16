@@ -7,44 +7,44 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cap-ai/cap/internal/app"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/db"
+	"github.com/cap-ai/cap/internal/format"
+	"github.com/cap-ai/cap/internal/llm/agent"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/pubsub"
+	"github.com/cap-ai/cap/internal/tui"
+	"github.com/cap-ai/cap/internal/version"
 	tea "github.com/charmbracelet/bubbletea"
 	zone "github.com/lrstanley/bubblezone"
-	"github.com/opencode-ai/opencode/internal/app"
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/db"
-	"github.com/opencode-ai/opencode/internal/format"
-	"github.com/opencode-ai/opencode/internal/llm/agent"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/pubsub"
-	"github.com/opencode-ai/opencode/internal/tui"
-	"github.com/opencode-ai/opencode/internal/version"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "opencode",
+	Use:   "cap",
 	Short: "Terminal-based AI assistant for software development",
-	Long: `OpenCode is a powerful terminal-based AI assistant that helps with software development tasks.
+	Long: `CAP is a powerful terminal-based AI assistant that helps with software development tasks.
 It provides an interactive chat interface with AI capabilities, code analysis, and LSP integration
 to assist developers in writing, debugging, and understanding code directly from the terminal.`,
 	Example: `
   # Run in interactive mode
-  opencode
+  cap
 
   # Run with debug logging
-  opencode -d
+  cap -d
 
   # Run with debug logging in a specific directory
-  opencode -d -c /path/to/project
+  cap -d -c /path/to/project
 
   # Print version
-  opencode -v
+  cap -v
 
   # Run a single non-interactive prompt
-  opencode -p "Explain the use of context in Go"
+  cap -p "Explain the use of context in Go"
 
   # Run a single non-interactive prompt with JSON output format
-  opencode -p "Explain the use of context in Go" -f json
+  cap -p "Explain the use of context in Go" -f json
   `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If the help flag is set, show the help message

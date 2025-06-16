@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
-	"github.com/opencode-ai/opencode/internal/config"
-	"github.com/opencode-ai/opencode/internal/diff"
-	"github.com/opencode-ai/opencode/internal/history"
-	"github.com/opencode-ai/opencode/internal/logging"
-	"github.com/opencode-ai/opencode/internal/lsp"
-	"github.com/opencode-ai/opencode/internal/permission"
+	"github.com/cap-ai/cap/internal/config"
+	"github.com/cap-ai/cap/internal/diff"
+	"github.com/cap-ai/cap/internal/history"
+	"github.com/cap-ai/cap/internal/logging"
+	"github.com/cap-ai/cap/internal/lsp"
+	"github.com/cap-ai/cap/internal/permission"
 )
 
 type EditParams struct {
@@ -742,13 +743,17 @@ func cleanOldNewString(str string) string {
 	return str
 }
 
+func isWhitespaceExceptNewline(r rune) bool {
+	return unicode.IsSpace(r) && r != '\n' && r != '\r'
+}
+
 // 2025.06.15 Kawata updated replace-delete-logic
 // buildIndexMap は文字列から空白文字を除去し、元のインデックスとのマッピングを作成する
 func buildIndexMap(content string) (stripped string, indices []int) {
 	var sb strings.Builder
-	indices = make([]int, 0)
+	indices = make([]int, 0, utf8.RuneCountInString(content))
 	for i, r := range content {
-		if !unicode.IsSpace(r) {
+		if !isWhitespaceExceptNewline(r) {
 			sb.WriteRune(r)
 			indices = append(indices, i)
 		}
@@ -761,15 +766,55 @@ func buildIndexMap(content string) (stripped string, indices []int) {
 func removeWhitespace(s string) string {
 	var sb strings.Builder
 	for _, r := range s {
-		if !unicode.IsSpace(r) {
+		if !isWhitespaceExceptNewline(r) {
 			sb.WriteRune(r)
 		}
 	}
 	return sb.String()
 }
 
+// ルーン単位でパターンを検索
+func findRuneIndex(runes, pattern []rune) int {
+	if len(pattern) == 0 {
+		return -1
+	}
+	for i := 0; i <= len(runes)-len(pattern); i++ {
+		found := true
+		for j := range pattern {
+			if runes[i+j] != pattern[j] {
+				found = false
+				break
+			}
+		}
+		if found {
+			return i
+		}
+	}
+	return -1
+}
+
+// ルーン単位で最後のパターンを検索
+func findLastRuneIndex(runes, pattern []rune) int {
+	if len(pattern) == 0 {
+		return -1
+	}
+	for i := len(runes) - len(pattern); i >= 0; i-- {
+		found := true
+		for j := range pattern {
+			if runes[i+j] != pattern[j] {
+				found = false
+				break
+			}
+		}
+		if found {
+			return i
+		}
+	}
+	return -1
+}
+
 // 2025.06.15 Kawata updated replace-delete-logic
-// findMatchIgnoringWhitespace は空白文字を無視してマッチングを行い、元の文字列でのインデックスを返す
+// findMatchIgnoringWhitespace は改行以外の空白文字を無視してマッチングを行い、元の文字列でのインデックスを返す
 func findMatchIgnoringWhitespace(content, pattern string) (start, end int, ok bool) {
 	strippedContent, indices := buildIndexMap(content)
 	strippedPattern := removeWhitespace(pattern)
@@ -778,23 +823,30 @@ func findMatchIgnoringWhitespace(content, pattern string) (start, end int, ok bo
 		return 0, 0, false
 	}
 
-	// 最初のマッチを探す
-	firstIdx := strings.Index(strippedContent, strippedPattern)
-	if firstIdx == -1 {
+	// 整合性チェック
+	if utf8.RuneCountInString(strippedContent) != len(indices) {
+		fmt.Printf("findMatchIgnoringWhitespace - length mismatch: strippedContent runes=%d, indices=%d\n", utf8.RuneCountInString(strippedContent), len(indices))
 		return 0, 0, false
 	}
 
-	// 複数のマッチがあるかチェック
-	lastIdx := strings.LastIndex(strippedContent, strippedPattern)
-	if firstIdx != lastIdx {
-		return 0, 0, false // 複数マッチは処理しない
+	// ルーンスライスに変換
+	runes := []rune(strippedContent)
+	patternRunes := []rune(strippedPattern)
+
+	// ルーン単位で検索
+	firstRuneIdx := findRuneIndex(runes, patternRunes)
+	if firstRuneIdx == -1 {
+		return 0, 0, false
 	}
 
-	// 元の文字列でのインデックスを計算
-	startIdx := indices[firstIdx]
+	lastRuneIdx := findLastRuneIndex(runes, patternRunes)
+	if firstRuneIdx != lastRuneIdx {
+		return 0, 0, false
+	}
 
-	// 終了インデックスを計算
-	endStrippedIdx := firstIdx + len(strippedPattern) - 1
+	// 元のインデックス計算
+	startIdx := indices[firstRuneIdx]
+	endStrippedIdx := firstRuneIdx + len(patternRunes) - 1
 	var endIdx int
 	if endStrippedIdx < len(indices) {
 		endIdx = indices[endStrippedIdx] + 1
